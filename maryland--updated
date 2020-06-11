@@ -1,0 +1,81 @@
+import requests
+from bs4 import BeautifulSoup
+import re
+import urllib.request
+import csv
+import pandas as pd
+
+URL = "https://academiccatalog.umd.edu/undergraduate/approved-courses/"
+page = requests.get(URL)
+soup = BeautifulSoup(page.text, 'html.parser')
+results = soup.findAll('a')
+
+departments = [] #array of all department links
+for link in results:
+    #note: this actually filters and gets relevant links
+    #but it may not be the best for generalizing-->
+    #is there a standard structure for department links?
+    p =  re.search(r'\/approved-courses\/([^"]+)', str(link))
+    #could possible do something with the first group?
+    if p:
+        departments.append("http://academiccatalog.umd.edu/undergraduate" + p.group(0))
+        
+departments_of_interest = [departments[2], departments[5], departments[10], departments[21]]
+
+filename = "maryland" + ".csv"
+end = []
+csv_writer = csv.writer(open(filename, 'w'))
+csv_writer.writerow(["Department Name","Number", "Title", "Description", "Graduate/Undergraduate", "lab", "year"])
+keywords = ["agri", "agricultural", "food", "animal"] # variations or no?
+
+
+for dep in departments_of_interest:
+    
+    URL = dep
+    page = requests.get(URL)
+    soup = BeautifulSoup(page.text, 'html.parser')
+    
+    #finding department name from page title block
+    depname = soup.find(class_= "page-title").text
+    #end department name 
+    
+    
+    courses = soup.findAll(class_="courseblock")
+    
+   
+    for course in courses:
+        
+        #begining course number and title
+        full = course.find(class_= "courseblocktitle").text
+        one = full.split(" ")
+        number = one[1]
+        two = full.split(number)
+        three = two[1]
+        four = three.split("(")
+        title = four[0]
+        #end course number and title
+        
+        #begin description
+        desc = course.find(class_= "courseblockdesc noindent").text
+        #end description (has /t/t in front because of the tab symbol but should go away in csv form)
+        
+        
+        #begin grad/undergrad (this is only undergrad courses)
+        grad = "Undergraduate"
+        #end grad
+        
+        #lab--looking through word lab in course description
+        lab = False
+        if "lab" in desc:
+            lab = True
+        #ending lab section
+        
+        year = "2020-2021"
+        
+        for key in keywords: #<-- filtered
+            if (key in title or key in desc):
+                if title not in end:
+                    csv_writer.writerow([depname,number, title, desc, grad, lab ,year])
+                    end.append(title)
+                    
+data = pd.read_csv("maryland.csv") 
