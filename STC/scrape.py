@@ -21,7 +21,7 @@ for link in results:
 	#but it may not be the best for generalizing
 	p =  re.search(r'\/undergraduate\/course-descriptions\/([^"]+)', str(link))
 	if p:
-		departments.append("https://catalog.unh.edu" + p.group(0))
+		departments.append("http://catalog.unh.edu" + p.group(0))
 		# encode("utf-8") may help if error printing
 	
 	#note: this extracts all links - may be useful for generalization
