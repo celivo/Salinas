@@ -1,0 +1,101 @@
+import requests
+from bs4 import BeautifulSoup
+import re
+import urllib.request
+import csv
+import pandas as pd
+
+URL = "http://catalog.missouri.edu/courseofferings/"
+page = requests.get(URL)
+soup = BeautifulSoup(page.text, 'html.parser')
+results = soup.findAll('a')
+
+departments = [] #array of all department links
+for link in results:
+    #note: this actually filters and gets relevant links
+    #but it may not be the best for generalizing-->
+    #is there a standard structure for department links?
+    p =  re.search(r'\/courseofferings\/([^"]+)', str(link))
+    #could possible do something with the first group?
+    if p:
+        departments.append("http://catalog.missouri.edu" + p.group(0))
+        
+departments_of_interest = [departments[3], departments[4], departments[5], departments[6], departments[2]]
+
+filename = "missouri" + ".csv"
+
+
+
+csv_writer = csv.writer(open(filename, 'w'))
+csv_writer.writerow(["Department Name", "Number", "Title", "Description", "Graduate/Undergraduate", "lab", "year"])
+keywords = ["agri", "agricultural", "food", "animal"] # variations or no?
+
+end = []
+
+for dep in departments_of_interest:
+    
+    URL = dep
+    page = requests.get(URL)
+    soup = BeautifulSoup(page.text, 'html.parser')
+    
+    #finding department name from page title block
+    depname = soup.find(class_= "active").text
+    #end department name
+    
+    courses = soup.findAll(class_="courseblock")
+    for course in courses:
+        
+        
+        #beginning course number and title
+        
+        title = course.find(class_= "courseblocktitle").text
+        
+        if ":" in title:
+            first = title.split(":")
+            number = first[0]
+            title = first[1]
+        
+        #ending course number and title
+        
+        #beginning credit and description
+        check = course.find(class_= "courseblockdesc").text
+        
+        
+        if "Credit Hours" in check:
+            lst = check.split("Credit Hours: ")
+            desc2 = lst[0]
+            half = lst[1]
+            
+        if "." in desc2:
+            desc = desc2.split(".")[1]
+            
+        #old code to find credits
+        #if "Prerequisites" in half:
+            #credit = half.split("Prerequisites")[0]  
+        #ending credit and description
+                
+        #beginning undergrad/grad
+        for char in number:
+            if char.isdigit():
+                if int(char) >=5:
+                    grad = "Graduate"
+                else:
+                    grad = "Undergraduate"
+                break #checks only digit in the thousands column        
+        #ending undergrad/grad
+
+        #lab--looking through word lab in course description
+        lab = False
+        if "lab" in desc:
+            lab = True
+        #ending lab section
+        
+        year = "2020-2021"
+            
+        for key in keywords: #<-- filtered
+            if (key in title or key in desc):
+                if title not in end:
+                    csv_writer.writerow([depname,number, title, desc, grad, lab, year])
+                    end.append(title)
+                    
+  data = pd.read_csv("missouri.csv")
