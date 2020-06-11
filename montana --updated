@@ -1,0 +1,87 @@
+import requests
+from bs4 import BeautifulSoup
+import re
+import urllib.request
+import csv
+import pandas as pd
+
+URL = "http://catalog.montana.edu/coursedescriptions/"
+page = requests.get(URL)
+soup = BeautifulSoup(page.text, 'html.parser')
+results = soup.findAll('a')
+
+departments = [] #array of all department links
+for link in results:
+    #note: this actually filters and gets relevant links
+    #but it may not be the best for generalizing-->
+    #is there a standard structure for department links?
+    p =  re.search(r'\/coursedescriptions\/([^"]+)', str(link))
+    #could possible do something with the first group?
+    if p:
+        departments.append("http://catalog.montana.edu" + p.group(0))
+        
+departments_of_interest = [departments[4], departments[5], departments[6], departments[7]]
+
+filename = "montana" + ".csv"
+
+end = []
+
+csv_writer = csv.writer(open(filename, 'w'))
+csv_writer.writerow(["Number", "Department Name", "Title", "Description", "Graduate/Undergraduate", "lab", "year"])
+keywords = ["agri", "agricultural", "food", "animal"] # variations or no?
+
+for dep in departments_of_interest:
+    URL = dep
+    try:
+        page = requests.get(URL)  #connection refused error keeps popping up
+    except requests.exceptions.ConnectionError:
+        requests.status_code = "Connection refused"
+    soup = BeautifulSoup(page.text, 'html.parser')
+    
+    #begindepartmentname
+    depname = soup.find(id = "content").text
+    #end departmentname
+   
+    courses = soup.findAll(class_="courseblock")
+                     
+    for course in courses:
+        
+        #begining course number and title
+        full = course.find(class_= "courseblocktitle").text
+        
+        one = full.split(".")
+        number = one[0]
+        title = one[1]
+        #end course number and title
+        
+        #begin description
+        desc = course.find(class_= "courseblockdesc").text
+        #end description (has /t/t in front because of the tab symbol but should go away in csv form)
+        
+       
+        #beginning undergrad/grad
+        for char in number:
+            if char.isdigit():
+                if int(char) >=5:
+                    grad = "Graduate"
+                else:
+                    grad = "Undergraduate"
+                break #checks only digit in the thousands column        
+        #ending undergrad/grad
+
+        #lab--looking through word lab in course description
+        lab = False
+        if "lab" in desc:
+            lab = True
+        #ending lab section
+        
+        year = "2020-2021"
+        
+        for key in keywords: #<-- filtered
+            if (key in title or key in desc):
+                if title not in end:
+                    csv_writer.writerow([depname,number, title, desc, grad, lab, year])
+                    end.append(title)
+data = pd.read_csv("montana.csv") 
+
+                    
