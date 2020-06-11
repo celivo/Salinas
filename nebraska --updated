@@ -1,0 +1,89 @@
+import requests
+from bs4 import BeautifulSoup
+import re
+import urllib.request
+import csv
+import pandas as pd
+
+URL = "https://catalog.unl.edu/undergraduate/courses/"
+page = requests.get(URL)
+soup = BeautifulSoup(page.text, 'html.parser')
+results = soup.findAll('a')
+
+departments = [] #array of all department links
+for link in results:
+    #note: this actually filters and gets relevant links
+    #but it may not be the best for generalizing-->
+    #is there a standard structure for department links?
+    p =  re.search(r'\/undergraduate\/courses\/([^"]+)', str(link))
+    #could possible do something with the first group?
+    if p:
+        departments.append("https://catalog.unl.edu" + p.group(0))
+        
+        
+departments_of_interest = [departments[4], departments[5], departments[6], departments[7], departments[8]]
+
+filename = "nebraska" + ".csv"
+end = []
+csv_writer = csv.writer(open(filename, 'w'))
+csv_writer.writerow(["Department Name","Number", "Title", "Description", "Graduate/Undergraduate", "lab", "year"])
+keywords = ["agri", "agricultural", "food", "animal"] # variations or no?
+
+
+for dep in departments_of_interest:
+    
+    URL = dep
+    page = requests.get(URL)
+    soup = BeautifulSoup(page.text, 'html.parser')
+    
+    #finding department name from page title block
+    depname = soup.find(class_= "page-title").text
+    #end department name
+
+
+    courses = soup.findAll(class_="courseblock")
+    
+    
+    for course in courses:
+      
+  
+        #title beginning
+        title = course.find(class_= "title").text
+        #title ending
+        
+        #number beginning
+        one = course.find(class_= "cb_subject_code").text
+        two = course.find(class_= "cb_course_number").text
+        number = one + two
+        #number ending
+     
+        #description
+        desc = course.find(class_= "cb_description").text
+        #end description
+        
+        #beginning undergrad/grad
+        for char in number:
+            if char.isdigit():
+                if int(char) >=5:
+                    grad = "Graduate"
+                else:
+                    grad = "Undergraduate"
+                break #checks only digit in the thousands column        
+        #ending undergrad/grad
+        
+        #lab--looking through word lab in course description
+        lab = False
+        if "lab" in desc:
+            lab = True
+        #ending lab section
+            
+        year = "2020-2021"
+        
+        
+        for key in keywords: #<-- filtered
+            if (key in title or key in desc):
+                if title not in end:
+                    csv_writer.writerow([depname,number, title, desc, grad, lab, year])
+                    end.append(title)
+                    
+data = pd.read_csv("nebraska.csv") 
