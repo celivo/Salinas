@@ -1,0 +1,123 @@
+import requests
+from bs4 import BeautifulSoup
+import re
+import urllib.request
+import csv
+import pandas as pd
+
+URL = "https://hilo.hawaii.edu/catalog/undergraduate-courses"
+page = requests.get(URL)
+soup = BeautifulSoup(page.text, 'html.parser')
+results = soup.findAll('a')
+
+departments = [] #array of all department links
+for link in results:
+    #note: this actually filters and gets relevant links
+    #but it may not be the best for generalizing-->
+    #is there a standard structure for department links?
+    p = re.search(r'"([A-Za-z0-9_\./\\-]*)"', str(link))  #gets link between the quotation marks
+    
+    
+    #could possible do something with the first group?
+    if p:
+        departments.append("https://hilo.hawaii.edu/catalog/" + p.group(0))
+        
+departments = departments[9:82]  #elimates the links that aren't course catalog related
+
+newdep = []  #getting rid of quotation marks around the link
+
+for item in departments:
+    one = item.split('"')
+    newdep.append(one[0] + one[1])
+    
+departments = newdep
+    
+departments_of_interest = [departments[3], departments[4], departments[5], departments[6], departments[7], departments[8]]
+
+filename = "hawaii" + ".csv"
+
+end = []
+
+csv_writer = csv.writer(open(filename, 'w'))
+csv_writer.writerow(["Department Name","Number", "Title", "Description", "Graduate/Undergraduate", "lab", "year"])
+keywords = ["agri", "agricultural", "food", "animal"] # variations or no?
+
+
+for dep in departments_of_interest:
+    URL = dep
+    try:
+        page = requests.get(URL)  #connection refused error keeps popping up
+    except requests.exceptions.ConnectionError:
+        requests.status_code = "Connection refused"
+    
+    soup = BeautifulSoup(page.text, 'html.parser')
+  
+    #finding department name from page title block
+    depname = soup.find(id= "page-content-title").text
+    
+    #end department name
+    
+    year = "2020-2021"
+    
+    courses = soup.findAll(class_="courses")
+    
+    one = re.findall(r'<p>(.+?)</p>', str(courses[0]))
+    
+    for course in one:
+        
+    
+        #finding title and course number
+        full = re.findall(r'<strong>(.+?)</strong>', course)
+        
+        
+
+        
+        for item in full:
+    
+            #finding number specicfically
+            two = item.split(" ")
+            if two[1] == "":
+                number = two[0] + str(two[2])
+                num = str(two[2])
+                
+            else:
+                number = two[0] + two[1]     
+                num = two[1]
+            #ending finding number
+            
+            #finding course title
+            three = item.split(num)
+            four = three[1].split("(")
+            title = four[0]
+            #ending course title
+        #end of finding title and course number
+        
+
+        
+        #beginning desc
+        desc = re.findall(r'</strong>(.+)', course)[0]
+        #end desc
+        
+        
+        
+        #beginning undergrad/grad
+        grad = "Undergraduate" 
+        #ending undergrad/grad
+        
+        #lab--looking through word lab in course description
+        lab = False
+        if "lab" in desc:
+            lab = True
+        #ending lab section
+    
+        
+        
+        for key in keywords: #<-- filtered
+            if (key in title or key in desc):
+                if title not in end:
+                    csv_writer.writerow([depname,number, title, desc, grad, lab, year])
+                    end.append(title)
+                    
+                    
+  data = pd.read_csv("hawaii.csv") 
+data
