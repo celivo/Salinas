@@ -1,0 +1,90 @@
+import requests
+from bs4 import BeautifulSoup
+import re
+import urllib.request
+import csv
+import pandas as pd
+
+URL = "http://catalog.mit.edu/subjects//"
+page = requests.get(URL)
+soup = BeautifulSoup(page.text, 'html.parser')
+results = soup.findAll('a')
+
+
+departments = [] #array of all department links
+for link in results:
+    #note: this actually filters and gets relevant links
+    #but it may not be the best for generalizing-->
+    #is there a standard structure for department links?
+    p =  re.search(r'\/subjects\/([^"]+)', str(link))
+    #could possible do something with the first group?
+    if p:
+        departments.append("http://catalog.mit.edu" + p.group(0))
+        
+departments_of_interest = [departments[2], departments[4], departments[9], departments[13], departments[16]]
+
+filename = "mit" + ".csv"
+end = []
+csv_writer = csv.writer(open(filename, 'w'))
+csv_writer.writerow(["Department Name","Number", "Title", "Description", "Graduate/Undergraduate", "lab", "year"])
+keywords = ["agri", "agricultural", "food", "animal"] # variations or no?
+
+
+for dep in departments_of_interest:
+    
+    URL = dep
+    page = requests.get(URL)
+    soup = BeautifulSoup(page.text, 'html.parser')
+    
+    #finding department name from page title block
+    depname = soup.find(class_= "page-title").text
+    #end department name
+
+
+    courses = soup.findAll(class_="courseblock")
+    
+    
+    for course in courses:
+  
+        #title 
+        full = course.find(class_= "courseblocktitle").text
+
+        lst = full.split(" ")
+  
+        number = lst[0]
+        second = full.split(number)
+        
+        title = second[1]
+            
+        #title ends
+          
+        
+        
+        #beginning course description  
+        desc = course.find(class_= "courseblockdesc").text
+        #ending course description -- deletes courses without descriptions
+        
+        #beginning undergrad/grad
+        terms = course.find(class_="courseblockterms").text
+        grad = None
+        if "U" in terms:
+            grad = "Undergraduate"
+        if "G" in terms:
+            grad = "Graduate"
+        #ending undergrad/grad
+        
+        #lab--looking through word lab in course description
+        lab = False
+        if "lab" in desc:
+            lab = True
+        #ending lab section
+        
+        year = "2019-2020"
+
+        for key in keywords: #<-- filtered
+            if (key in title or key in desc):
+                if title not in end:
+                    csv_writer.writerow([depname, number, title, desc, grad, lab, year])
+                    end.append(title)
+                    
+data = pd.read_csv("mit.csv") 
