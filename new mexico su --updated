@@ -1,0 +1,80 @@
+import requests
+from bs4 import BeautifulSoup
+import re
+import urllib.request
+import csv
+import pandas as pd
+
+URL = "https://catalogs.nmsu.edu/archive/2018-2019/nmsu/course-listings/"
+page = requests.get(URL)
+soup = BeautifulSoup(page.text, 'html.parser')
+results = soup.findAll('a')
+
+departments = [] #array of all department links
+for link in results:
+    p =  re.search(r'\/archive\/2018-2019\/nmsu\/course-listings\/([^"]+)', str(link))
+    if p:
+        departments.append("https://catalogs.nmsu.edu" + p.group(0))
+        
+departments_of_interest = [departments[1], departments[5], departments[6],departments[9]]
+filename = "nmsu" + ".csv"
+
+end = []
+
+csv_writer = csv.writer(open(filename, 'w'))
+csv_writer.writerow(["Department Name","Number", "Title", "Description", "Graduate/Undergraduate", "lab", "year"])
+keywords = ["agri", "agricultural", "food", "animal"] # variations or no?
+
+for dep in departments_of_interest:
+    URL = dep
+    page = requests.get(URL)
+    soup = BeautifulSoup(page.text, 'html.parser')
+    
+    #finding department name from page title block
+    depname = soup.find(class_= "page-title").text
+    #end department name 
+    
+    courses = soup.findAll(class_="courseblock")
+    
+    
+    for course in courses:
+         #begin course number and title
+        title = course.find(class_="courseblocktitle").text
+        
+        one = title.split(".")
+        title = one[1]
+        number = one[0]
+        #end course number and title
+        
+        #begin description
+        desc = course.find(class_= "courseblockdesc").text
+        #end description
+        
+    
+        #beginning undergrad/grad
+        for char in number:
+            if char.isdigit():
+                if int(char) >=5:
+
+                    grad = "Graduate"
+                else:
+                    grad = "Undergraduate"
+                break #checks only digit in the hundreds column        
+        #ending undergrad/grad
+        
+        #lab--looking through word lab in course description
+        lab = False
+        if "lab" in desc:
+            lab = True
+        #ending lab section
+        
+        year = "2018-2019"
+        
+        for key in keywords: #<-- filtered
+            if (key in title or key in desc):
+                if title not in end:
+                    csv_writer.writerow([depname, number, title, desc, grad, lab, year])
+                    end.append(title)
+                    
+data = pd.read_csv("nmsu.csv") 
+        
