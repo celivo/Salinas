@@ -1,0 +1,49 @@
+import requests
+from bs4 import BeautifulSoup
+import re
+import urllib.request
+import csv
+import pandas as pd
+
+URL = "https://courses.illinois.edu/schedule/DEFAULT/DEFAULT"
+page = requests.get(URL)
+soup = BeautifulSoup(page.text, 'html.parser')
+results = soup.findAll('a')
+
+departments = [] #array of all department links
+
+courselink = [] #array of all department links
+
+
+
+for link in results:
+    #note: this actually filters and gets relevant links
+    #but it may not be the best for generalizing-->
+    #is there a standard structure for department links?
+    p =  re.search(r'\/schedule\/2020\/fall\/([^"]+)', str(link))
+    #could possible do something with the first group?
+    if p:
+       
+        departments.append("https://courses.illinois.edu" + p.group(0))
+        
+
+for dep in departments:
+    #note: this actually filters and gets relevant links
+    #but it may not be the best for generalizing-->
+    #is there a standard structure for department links?
+    
+   
+    
+    g =  re.search(r'\/schedule\/2020\/fall\/([^"]+)', str(dep))
+    
+  
+    
+    q =  re.search(r'\/schedule\/2020\/fall\/'+str(g.group(1))+'\/([^"]+)', str(dep))
+    
+    print(g.group(1))
+    #could posible do something with the first group?
+    if p:
+        courselink.append("https://courses.illinois.edu" + q.group(0))
+
+    
+        
